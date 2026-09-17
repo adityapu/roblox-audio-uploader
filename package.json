@@ -1,8 +1,8 @@
 {
   "name": "roblox-audio-uploader",
   "version": "1.0.0",
-  "type": "commonjs",
+  "private": true,
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   }
 }
