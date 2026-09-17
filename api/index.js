@@ -1,6 +1,3 @@
-const fetch = require('node-fetch');
-const FormData = require('form-data');
-
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-roblox-api-key');
@@ -10,7 +7,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       status: 'OK',
       service: 'Roblox Audio Uploader',
-      version: '2.0'
+      version: '3.0'
     });
   }
 
@@ -24,20 +21,14 @@ module.exports = async (req, res) => {
 
   try {
     const apiKey = req.headers['x-roblox-api-key'];
-    const userId = req.body.userId;
-    const name = req.body.name || 'MyAudio';
-    const fileData = req.body.file;
-    const fileName = req.body.fileName || 'audio.mp3';
-    const fileType = req.body.fileType || 'audio/mpeg';
+    const { userId, name, file: fileData, fileName, fileType } = req.body;
 
     if (!apiKey || apiKey.length < 20) {
       return res.status(400).json({ error: 'API Key tidak valid' });
     }
-
     if (!userId || !/^\d+$/.test(String(userId))) {
       return res.status(400).json({ error: 'User ID tidak valid' });
     }
-
     if (!fileData) {
       return res.status(400).json({ error: 'File tidak ditemukan' });
     }
@@ -47,17 +38,18 @@ module.exports = async (req, res) => {
 
     if (fileBuffer.length > 4.5 * 1024 * 1024) {
       return res.status(413).json({
-        error: 'File terlalu besar untuk Vercel (maks 4.5MB). Kompres dulu.'
+        error: 'File terlalu besar untuk Vercel (maks 4.5MB)'
       });
     }
 
     const form = new FormData();
-    form.append('file', fileBuffer, {
-      filename: fileName,
-      contentType: fileType
-    });
+    form.append(
+      'file',
+      new Blob([fileBuffer], { type: fileType || 'audio/mpeg' }),
+      fileName || 'audio.mp3'
+    );
     form.append('assetType', 'Audio');
-    form.append('displayName', String(name).substring(0, 50));
+    form.append('displayName', String(name || 'MyAudio').substring(0, 50));
     form.append('description', 'Uploaded via MUSIC Anti-Copyright Pro');
     form.append('creationContext', JSON.stringify({
       creator: { userId: String(userId) }
@@ -65,15 +57,12 @@ module.exports = async (req, res) => {
 
     const response = await fetch('https://apis.roblox.com/assets/v1/assets', {
       method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        ...form.getHeaders()
-      },
+      headers: { 'x-api-key': apiKey },
       body: form
     });
 
     const data = await response.json();
-    console.log(`[Upload] User ${userId} | Status ${response.status} | Size ${fileBuffer.length}`);
+    console.log(`[Upload] User ${userId} | Status ${response.status}`);
 
     if (!response.ok) {
       return res.status(response.status).json({
@@ -91,13 +80,5 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('[Error]', err.message);
     return res.status(500).json({ error: err.message });
-  }
-};
-
-module.exports.config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb'
-    }
   }
 };
